@@ -3,29 +3,38 @@
 #include <TimedAction.h>
 #include <QTRSensors.h>
 
-const int LED_V = 34;
-const int LED_J = 35;
-const int LED_R = 39;
+const int LED_R = 2;
+const int LED_G = 3;
+const int LED_B = 5 ;
 const int BOUTON_PIN = 37;
 const int M_GAUCHE = 0;
 const int M_DROITE = 0;
 
+void setColor(int red, int green, int blue)
+{
+  #ifdef COMMON_ANODE
+    red = 255 - red;
+    green = 255 - green;
+    blue = 255 - blue;
+  #endif
+  analogWrite(LED_R, red);
+  analogWrite(LED_G, green);
+  analogWrite(LED_B, blue);  
+}
 
 void stop()
 {
-  digitalWrite(LED_R,HIGH);
+  setColor(255,0,0);
   MOTOR_SetSpeed(M_GAUCHE,0);
   MOTOR_SetSpeed(M_DROITE,0);
 }
 void waitBouton()
 {
-  digitalWrite(LED_V,LOW);
-  digitalWrite(LED_R,HIGH);
+  setColor(255,0,0);
   while (digitalRead(BOUTON_PIN) == 0){}
   while(digitalRead(BOUTON_PIN) == 1){} 
   delay(50); // bouncing buffer
-  digitalWrite(LED_R,LOW);
-  digitalWrite(LED_V,HIGH);
+ setColor(0,255,0);
 }
 
 void t_bouton()
@@ -47,15 +56,15 @@ void t_Couleur()
 
 void calibration()
 {
-  digitalWrite(LED_V,LOW);
+  setColor(0,0,0);
   for (int i =0; i<10;i++)
   {
     if(i%2 == 0)
     {
-      digitalWrite(LED_J,HIGH);
+     setColor(0,0,255);
     }
     else
-    digitalWrite(LED_J,LOW);
+    setColor(0,0,0);
     delay(500);
   }
 
@@ -66,12 +75,14 @@ TimedAction threadCouleur = TimedAction(500,t_Couleur);
 void setup() {
   
   BoardInit();
-  pinMode(LED_V,OUTPUT);
-  digitalWrite(LED_V,LOW);
-  pinMode(LED_J,OUTPUT);
-  digitalWrite(LED_J,LOW);
+  Serial.begin(9600);
+  Serial.println("start");
   pinMode(LED_R,OUTPUT);
-  digitalWrite(LED_R,HIGH);
+  digitalWrite(LED_R,LOW);
+  pinMode(LED_G,OUTPUT);
+  digitalWrite(LED_G,LOW);
+  pinMode(LED_B,OUTPUT);
+  digitalWrite(LED_B,HIGH);
   pinMode(BOUTON_PIN, LOW);
 
   waitBouton();
