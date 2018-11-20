@@ -2,32 +2,86 @@
 #include <LibRobus.h>
 #include <TimedAction.h>
 #include <QTRSensors.h>
+#include <ADJDS311.h>
 
-const int LED_R = 2;
-const int LED_G = 3;
-const int LED_B = 5 ;
+const int LED_R = 7;
+const int LED_G = 8;
+const int LED_B = 9 ;
 const int BOUTON_PIN = 37;
 const int M_GAUCHE = 0;
-const int M_DROITE = 0;
+const int M_DROITE = 1;
 const int maxCapacity = 3;
+const int pinServo = 40;
 
-const int pinA = 2;
-const int pinB = 3;
-const int pinC = 4;
-const int pinD = 5;
-const int pinE = 6;
-const int pinF = 7;
-const int pinG = 8;
-const int D1 = 9;
-const int D2 = 10;
-const int D3 = 11;
-const int D4 = 12;
-const int D5 = 13;
+#define stp 12
+#define dir 11
+#define ena 10
+#define ledPin = 46;
+ADJDS311 color(46);
 
-int nbBleu = 0;
+const int pinA = 22;
+const int pinB = 23;
+const int pinC = 24;
+const int pinD = 25;
+const int pinE = 26;
+const int pinF = 27;
+const int pinG = 28;
+const int D1 =29;
+const int D2 = 30;
+const int D3 = 31;
+const int D4 = 32;
+const int D5 = 33;
+
+
 int nbRouge = 0;
-int nbVert = 0;
+int nbJaune = 0;
+int nbBleu = 0;
 
+void servo(int pulse) // 1 = ouvert     2 = ferme
+{
+  digitalWrite(pinServo,1);
+  delay(pulse);
+  digitalWrite(pinServo,0);
+  delay(20-pulse);
+}
+void delayServo(int milli,int pulse) /// pas precis
+{
+  for (int t =0;t<milli;t+=1)
+  {
+    servo(pulse);
+  }
+}
+void step(int angle, bool direction)
+{
+  long nb_pulse = angle / 0.225;
+  Serial.println(nb_pulse);
+
+
+  if(direction == true){
+    digitalWrite(dir, HIGH); //Set direction of motor to CW.
+    digitalWrite(ena, LOW); //Set Enable pin to low (Enabled)
+    for(int count = 1; count < nb_pulse; count++){
+      
+      digitalWrite(stp, HIGH); //Set Step Pin to HIGH for half of period.
+      delay(1);
+      digitalWrite(stp, LOW); //Set Step pin to LOW for half of period.
+      delay(1);
+    }
+  }
+
+  else if(direction == false){
+    digitalWrite(dir, LOW); //Set direction of motor to CCW.
+    for(int count = 1; count < nb_pulse; count++){
+      
+      digitalWrite(stp, HIGH); //Set Step Pin to HIGH for the period duration.
+      delay(1);
+      digitalWrite(stp, LOW);
+      delay(1);
+    }
+    digitalWrite(ena, HIGH); //Set Enable pin to high (Disabled)
+  }
+    
+}
 void displayChar(int position, int abcdefg[7])//position 1 a 5          thread pt pas nessecaire
 {
   switch(position)
@@ -50,7 +104,7 @@ void displayChar(int position, int abcdefg[7])//position 1 a 5          thread p
   {
     digitalWrite(pin, abcdefg[pin-pinA]);
   }
-  delay(4);
+  delay(1);
 }
 int changeC(int ch[],int a,int b,int c,int d,int e,int f,int g)
 {
@@ -110,56 +164,54 @@ void displayString(char characters[])//juste minuscule
     }
     displayChar(i+1,ch);
   }
+  digitalWrite(D5,1);
 }
 void displayCompteur()
 {
   char compteur[5] = "+++++";
-  compteur[0] = nbBleu +'0';
-  compteur[2] = nbVert +'0';
-  compteur[4] = nbRouge +'0';
+  compteur[0] = nbRouge +'0';
+  compteur[2] = nbJaune +'0';
+  compteur[4] = nbBleu +'0';
   displayString(compteur);
+}
+void setColor(int red, int green, int blue)
+{
+  digitalWrite(LED_R, red);
+  digitalWrite(LED_G, green);
+  digitalWrite(LED_B, blue);  
+}
+
+void stop()
+{
+  setColor(1,0,0);
+  MOTOR_SetSpeed(M_GAUCHE,0);
+  MOTOR_SetSpeed(M_DROITE,0);
 }
 int bacPlein()
 {
-  if(nbBleu >= maxCapacity) return 1;
-  else if (nbVert >= maxCapacity) return 2;
-  else if (nbRouge >= maxCapacity) return 3;
+  if(nbRouge >= maxCapacity) return 1;
+  else if (nbJaune >= maxCapacity) return 2;
+  else if (nbBleu >= maxCapacity) return 3;
   
   return 0;
 }
 void viderBac(char couleur[])
 {
-  //LED
-  while (true)
+  stop();
+  while (digitalRead(BOUTON_PIN) == 0)
   {
     displayString(couleur);
   }
-}
-void setColor(int red, int green, int blue)
-{
-  #ifdef COMMON_ANODE
-    red = 255 - red;
-    green = 255 - green;
-    blue = 255 - blue;
-  #endif
-  analogWrite(LED_R, red);
-  analogWrite(LED_G, green);
-  analogWrite(LED_B, blue);  
+  delay(1000);
 }
 
-void stop()
-{
-  setColor(255,0,0);
-  MOTOR_SetSpeed(M_GAUCHE,0);
-  MOTOR_SetSpeed(M_DROITE,0);
-}
 void waitBouton()
 {
-  setColor(255,0,0);
-  while (digitalRead(BOUTON_PIN) == 0){}
+  setColor(1,0,0);
+  while (digitalRead(BOUTON_PIN) == 0){displayString("Stop+");}
   while(digitalRead(BOUTON_PIN) == 1){} 
   delay(50); // bouncing buffer
- setColor(0,255,0);
+  setColor(0,1,0);
 }
 
 void t_bouton()
@@ -173,33 +225,120 @@ void t_bouton()
   }
   digitalWrite(LED_R,LOW);
 }
-
-void t_Couleur()
+int couleur()
 {
-  //pet pet
+  int coul=0;
+    int tab[10];
+    for (int k=0;k<10;k++){
+      tab[k]=0;
+    }
+    int i=0;
+      while (i<10){
+        int red=color.readRed();
+        int green=color.readGreen();
+        int blue=color.readBlue();
+      if (red>green){
+        if (green>blue){
+          if (blue>350){
+          tab[i]=1;
+          }
+        }
+      }
+      if (green>red){
+        if (red>blue){
+          if (blue>350){
+          if (red>400){
+            tab[i]=5;
+          }
+          }
+        }
+      }
+      if (green>blue){
+        if(blue>red){
+          if (blue>350){
+          tab[i]=10;
+          }
+        }
+      }
+      else{
+            tab[i]=0;
+      }
+      i++;
+      }
+      int somme=0;
+      for (int j=0;j<10;j++){
+        somme+=tab[j];
+      }
+      switch (somme){
+
+      case 8: coul=1;break;
+      case 9: coul=1;break;
+      case 10: coul=1;break;
+      case 40: coul=2;break;
+      case 45: coul=2;break;
+      case 50: coul=2;break;
+      case 80: coul=3;break;
+      case 90: coul=3;break;
+      case 100: coul=3;break;
+
+    default:coul=0;
+  }
+  return coul;
+}
+void compteur(int couleur)
+{
+  switch(couleur)
+  {
+    case 1:nbRouge++;break;
+    case 2:nbJaune++;break;
+    case 3:nbBleu++;break;
+  }
 }
 
+void rammasser(int couleur)
+{
+  if (couleur == 0)return;
+  stop();
+  setColor(1,1,1);
+  delayServo(50,2);
+  step(180,true);
+  delayServo(50,1);
+  step(180,false);
+  compteur(couleur);
+  switch(bacPlein())
+  {
+    case 1:nbRouge =0; viderBac("rouGe");break;
+    case 2:nbJaune = 0; viderBac("Jaune");break;
+    case 3:nbBleu = 0; viderBac("BleU");break;
+  }
+  setColor(0,1,0);
+}
+void t_Couleur()
+{
+  rammasser(couleur());
+}
+void t_bouger()
+{
+
+}
 void calibration()
 {
-  setColor(0,0,0);
-  for (int i =0; i<10;i++)
-  {
-    if(i%2 == 0)
-    {
-     setColor(0,0,255);
-    }
-    else
-    setColor(0,0,0);
-    delay(500);
-  }
+  setColor(0,0,255);
+  color.init();
+  color.ledOn();
+  color.calibrate();
 
 } 
 TimedAction threadBouton = TimedAction(50,t_bouton);
 TimedAction threadCouleur = TimedAction(500,t_Couleur);
+TimedAction threadBouger = TimedAction(100,t_bouger);
+
 
 void setup() {
   
   BoardInit();
+  MOTOR_SetSpeed(0,0);
+  MOTOR_SetSpeed(1,0);
   Serial.begin(9600);
   Serial.println("start");
   pinMode(LED_R,OUTPUT);
@@ -207,8 +346,14 @@ void setup() {
   pinMode(LED_G,OUTPUT);
   digitalWrite(LED_G,LOW);
   pinMode(LED_B,OUTPUT);
-  digitalWrite(LED_B,HIGH);
+  digitalWrite(LED_B,LOW);
   pinMode(BOUTON_PIN, LOW);
+  pinMode(ena,OUTPUT);
+  digitalWrite(ena, HIGH);
+  pinMode(dir,OUTPUT);
+  digitalWrite(dir, LOW);
+  pinMode(stp,OUTPUT);
+  digitalWrite(stp, LOW);
   // initialize the digital pins as outputs.
   pinMode(pinA, OUTPUT);     
   pinMode(pinB, OUTPUT);     
@@ -222,6 +367,7 @@ void setup() {
   pinMode(D3, OUTPUT);  
   pinMode(D4, OUTPUT); 
   pinMode(D5,OUTPUT); 
+  pinMode(pinServo,OUTPUT);
   
   digitalWrite(D1, HIGH);
   digitalWrite(D2, HIGH);
@@ -230,20 +376,17 @@ void setup() {
   digitalWrite(D5, HIGH);
 
   waitBouton();
+  Serial.println("test");
   calibration();
+  Serial.println("1");
   waitBouton();
+  Serial.println("2");
   
 }
 
 void loop() {
   threadBouton.check();
   threadCouleur.check();
-
-  switch(bacPlein())
-  {
-    case 1: viderBac("BleU");break;
-    case 2: viderBac("VeRt");break;
-    case 3: viderBac("RouGe");break;
-    default:displayCompteur();
-  }
+  threadBouger.check();
+  displayCompteur();
 }
