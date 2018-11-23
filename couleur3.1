@@ -1,0 +1,139 @@
+/*
+Projet: Le nom du script
+Equipe: Votre numero d'equipe
+Auteurs: Les membres auteurs du script
+Description: Breve description du script
+Date: Derniere date de modification
+*/
+
+/* ****************************************************************************
+Inclure les librairies de functions que vous voulez utiliser
+**************************************************************************** */
+
+#include <LibRobus.h> // Essentielle pour utiliser RobUS
+#include <Arduino.h>
+#include <ADJDS311.h>
+
+
+/* ****************************************************************************
+Variables globales et defines
+**************************************************************************** */
+// -> defines...
+// L'ensemble des fonctions y ont acces
+
+#define ledPin = 46;
+ADJDS311 color(46);
+
+
+
+/* ****************************************************************************
+Vos propres fonctions sont creees ici
+**************************************************************************** */
+
+
+  // code
+
+
+
+/* ****************************************************************************
+Fonctions d'initialisation (setup)
+**************************************************************************** */
+// -> Se fait appeler au debut du programme
+// -> Se fait appeler seulement un fois
+// -> Generalement on y initilise les varibbles globales
+
+void setup(){
+  BoardInit();
+  Serial.begin(9600);
+  color.init();
+  color.ledOn();
+  color.calibrate();
+  }
+
+int couleur1(){//return 1 pour red 2 pour jaune 3 pour blue
+  int coul=0;
+  int tab[10];
+  for (int k=0;k<10;k++){
+    tab[k]=0;
+  }
+  int i=0;
+    while (i<10){
+      int red=color.readRed();
+      int green=color.readGreen();
+      int blue=color.readBlue();
+     if (red>green){
+       if (red-green>10){
+         if (red>320){
+           if(red-blue>60){
+             
+        tab[i]=1;
+             
+           }
+         }
+       }
+     }
+     if (green>red){
+       if (red>blue){
+         if (green>375){
+           if(red-blue>60){
+
+          tab[i]=5;
+             
+           }
+         }
+       }
+     }
+     if (green>blue){
+       if(blue>330){
+         if (blue>red){
+        tab[i]=10;
+         }
+       }
+     }
+     else{
+           tab[i]=0;
+     }
+     i++;
+
+    }
+    int somme=0;
+    for (int j=0;j<10;j++){
+      somme+=tab[j];
+    }
+    switch (somme){
+
+    case 8: coul=1;break;
+    case 9: coul=1;break;
+    case 10: coul=1;break;
+    case 40: coul=2;break;
+    case 45: coul=2;break;
+    case 50: coul=2;break;
+    case 80: coul=3;break;
+    case 90: coul=3;break;
+    case 100: coul=3;break;
+
+   default:coul=0;
+}
+  return coul;
+}
+
+int couleur(){
+  int coul1=couleur1();
+  delay(50);
+  int coul2=couleur1();
+  if (coul1==coul2){
+  return coul1;
+  }
+}
+/* ****************************************************************************
+Fonctions de boucle infini (loop())
+**************************************************************************** */
+// -> Se fait appeler perpetuellement suite au "setup"
+
+void loop() {
+  // SOFT_TIMER_Update(); // A decommenter pour utiliser des compteurs logiciels
+// Delais pour décharger le CPU
+Serial.print("La couleur est: ");Serial.print(couleur());Serial.println(" ");
+
+  delay(200);
+}
