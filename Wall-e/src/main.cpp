@@ -4,32 +4,42 @@
 #include <QTRSensors.h>
 #include <ADJDS311.h>
 
-const int LED_R = 7;
-const int LED_G = 8;
-const int LED_B = 9 ;
+#define NUM_SENSORS             8  // number of sensors used
+#define NUM_SAMPLES_PER_SENSOR  4  // average 4 analog samples per sensor reading
+#define EMITTER_PIN             2  // emitter is controlled by digital pin 2
+
+// sensors 0 through 5 are connected to analog inputs 0 through 5, respectively
+QTRSensorsAnalog qtra((unsigned char[]) {3,4,5,6,7,8,9,10},
+  NUM_SENSORS, NUM_SAMPLES_PER_SENSOR, EMITTER_PIN);
+unsigned int sensorValues[NUM_SENSORS];
+
+const int vitesse = 0.5;
+const int LED_R = 50;
+const int LED_G = 51;
+const int LED_B = 52;
 const int BOUTON_PIN = 37;
 const int M_GAUCHE = 0;
 const int M_DROITE = 1;
 const int maxCapacity = 3;
-const int pinServo = 40;
+const int pinServo = 8;
 
-#define stp 12
-#define dir 11
+#define stp 11
+#define dir 12
 #define ena 10
-#define ledPin = 46;
-ADJDS311 color(46);
+#define ledPin = 42;
+ADJDS311 color(42);
 
-const int pinA = 22;
-const int pinB = 23;
+const int pinA = 31;
+const int pinB = 27;
 const int pinC = 24;
-const int pinD = 25;
-const int pinE = 26;
-const int pinF = 27;
-const int pinG = 28;
-const int D1 =29;
-const int D2 = 30;
-const int D3 = 31;
-const int D4 = 32;
+const int pinD = 23;
+const int pinE = 22;
+const int pinF = 30;
+const int pinG = 25;
+const int D1 =32;
+const int D2 = 29;
+const int D3 = 28;
+const int D4 = 26;
 const int D5 = 33;
 
 
@@ -180,7 +190,6 @@ void setColor(int red, int green, int blue)
   digitalWrite(LED_G, green);
   digitalWrite(LED_B, blue);  
 }
-
 void stop()
 {
   setColor(1,0,0);
@@ -207,6 +216,7 @@ void viderBac(char couleur[])
 
 void waitBouton()
 {
+  Serial.println("stop");
   setColor(1,0,0);
   while (digitalRead(BOUTON_PIN) == 0){displayString("Stop+");}
   while(digitalRead(BOUTON_PIN) == 1){} 
@@ -216,6 +226,7 @@ void waitBouton()
 
 void t_bouton()
 {
+  Serial.println("bouton");
   if (digitalRead(BOUTON_PIN) == 1)
   {
     while(digitalRead(BOUTON_PIN) == 1){}     // attend le relachement
@@ -315,11 +326,40 @@ void rammasser(int couleur)
 }
 void t_Couleur()
 {
+  Serial.println("couleur");
   rammasser(couleur());
+}
+int isLine()
+{
+  qtra.read(sensorValues);
+  for(int i = 1; i < NUM_SENSORS+1;i++)
+  {
+    if(sensorValues[i-1] > 800) return i;
+  }
+  return 0;
+}
+void uTurn(int line)
+{
+  if (line <=4)
+  {
+    MOTOR_SetSpeed(1,0);
+  }
+  else
+  {
+    MOTOR_SetSpeed(0,0);
+  }
+}
+void straight()
+{
+  MOTOR_SetSpeed(0,vitesse);
+  MOTOR_SetSpeed(1,vitesse);
 }
 void t_bouger()
 {
-
+  Serial.println("bouger");
+  int line = isLine();
+  if(line != 0) uTurn(line);
+  else straight();
 }
 void calibration()
 {
@@ -388,5 +428,6 @@ void loop() {
   threadBouton.check();
   threadCouleur.check();
   threadBouger.check();
+  Serial.println("loop");
   displayCompteur();
 }
