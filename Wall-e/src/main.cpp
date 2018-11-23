@@ -14,10 +14,10 @@ QTRSensorsAnalog qtra((unsigned char[]) {3,4,5,6,7,8,9,10},
 unsigned int sensorValues[NUM_SENSORS];
 
 const int vitesse = 0.5;
-const int LED_R = 50;
-const int LED_G = 51;
-const int LED_B = 52;
-const int BOUTON_PIN = 37;
+const int LED_R = 47  ;
+const int LED_G = 48;
+const int LED_B = 49;
+const int BOUTON_PIN = 46;
 const int M_GAUCHE = 0;
 const int M_DROITE = 1;
 const int maxCapacity = 3;
@@ -187,8 +187,12 @@ void displayCompteur()
 void setColor(int red, int green, int blue)
 {
   digitalWrite(LED_R, red);
+  Serial.print(red);
+
   digitalWrite(LED_G, green);
-  digitalWrite(LED_B, blue);  
+  Serial.print(green);
+  digitalWrite(LED_B, blue); 
+  Serial.println(blue); 
 }
 void stop()
 {
@@ -219,6 +223,7 @@ void waitBouton()
   Serial.println("stop");
   setColor(1,0,0);
   while (digitalRead(BOUTON_PIN) == 0){displayString("Stop+");}
+  Serial.println("peser");
   while(digitalRead(BOUTON_PIN) == 1){} 
   delay(50); // bouncing buffer
   setColor(0,1,0);
@@ -422,12 +427,34 @@ void setup() {
   waitBouton();
   Serial.println("2");
   
+  
 }
 
 void loop() {
-  threadBouton.check();
+  //setColor(1,0,0);
+  //delay(1000);
+  //setColor(0,1,0);
+  //delay(1000);
+  //setColor(0,0,1);
+ // delay(1000);
+ threadBouton.check();
   threadCouleur.check();
   threadBouger.check();
   Serial.println("loop");
   displayCompteur();
+  /*
+  digitalWrite(31,HIGH);
+digitalWrite(27,LOW);
+digitalWrite(24,HIGH);
+digitalWrite(23,HIGH);
+digitalWrite(22,LOW);
+digitalWrite(30,HIGH);
+digitalWrite(25,HIGH);
+
+digitalWrite(32,HIGH);
+digitalWrite(29,HIGH);
+digitalWrite(28,HIGH);
+digitalWrite(26,LOW);
+digitalWrite(33,LOW);
+*/
 }
