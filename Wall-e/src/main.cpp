@@ -8,19 +8,18 @@
 #define NUM_SAMPLES_PER_SENSOR  4  // average 4 analog samples per sensor reading
 #define EMITTER_PIN             2  // emitter is controlled by digital pin 2
 
-// sensors 0 through 5 are connected to analog inputs 0 through 5, respectively
-QTRSensorsAnalog qtra((unsigned char[]) {3,4,5,6,7,8,9,10},
+QTRSensorsAnalog qtra((unsigned char[]) {A3,A4,A5,A6,A7,A8,A9,A10},
   NUM_SENSORS, NUM_SAMPLES_PER_SENSOR, EMITTER_PIN);
 unsigned int sensorValues[NUM_SENSORS];
 
-const int vitesse = 0.5;
-const int LED_R = 47  ;
+const float vitesse = 0.5;
+const int LED_R = 47;
 const int LED_G = 48;
 const int LED_B = 49;
 const int BOUTON_PIN = 46;
 const int M_GAUCHE = 0;
 const int M_DROITE = 1;
-const int maxCapacity = 3;
+const int maxCapacity = 4;
 const int pinServo = 8;
 
 #define stp 11
@@ -29,69 +28,23 @@ const int pinServo = 8;
 #define ledPin = 42;
 ADJDS311 color(42);
 
-const int pinA = 31;
-const int pinB = 27;
+const int pinA = 22;
+const int pinB = 23;
 const int pinC = 24;
-const int pinD = 23;
-const int pinE = 22;
-const int pinF = 30;
-const int pinG = 25;
-const int D1 =32;
-const int D2 = 29;
-const int D3 = 28;
-const int D4 = 26;
-const int D5 = 33;
+const int pinD = 25;
+const int pinE = 26;
+const int pinF = 27;
+const int pinG = 28;
+const int D1 =29;
+const int D2 = 32;
+const int D3 = 37;
+const int D4 = 38;
+const int D5 = 39;
 
 
 int nbRouge = 0;
 int nbJaune = 0;
 int nbBleu = 0;
-
-void servo(int pulse) // 1 = ouvert     2 = ferme
-{
-  digitalWrite(pinServo,1);
-  delay(pulse);
-  digitalWrite(pinServo,0);
-  delay(20-pulse);
-}
-void delayServo(int milli,int pulse) /// pas precis
-{
-  for (int t =0;t<milli;t+=1)
-  {
-    servo(pulse);
-  }
-}
-void step(int angle, bool direction)
-{
-  long nb_pulse = angle / 0.225;
-  Serial.println(nb_pulse);
-
-
-  if(direction == true){
-    digitalWrite(dir, HIGH); //Set direction of motor to CW.
-    digitalWrite(ena, LOW); //Set Enable pin to low (Enabled)
-    for(int count = 1; count < nb_pulse; count++){
-      
-      digitalWrite(stp, HIGH); //Set Step Pin to HIGH for half of period.
-      delay(1);
-      digitalWrite(stp, LOW); //Set Step pin to LOW for half of period.
-      delay(1);
-    }
-  }
-
-  else if(direction == false){
-    digitalWrite(dir, LOW); //Set direction of motor to CCW.
-    for(int count = 1; count < nb_pulse; count++){
-      
-      digitalWrite(stp, HIGH); //Set Step Pin to HIGH for the period duration.
-      delay(1);
-      digitalWrite(stp, LOW);
-      delay(1);
-    }
-    digitalWrite(ena, HIGH); //Set Enable pin to high (Disabled)
-  }
-    
-}
 void displayChar(int position, int abcdefg[7])//position 1 a 5          thread pt pas nessecaire
 {
   switch(position)
@@ -176,14 +129,6 @@ void displayString(char characters[])//juste minuscule
   }
   digitalWrite(D5,1);
 }
-void displayCompteur()
-{
-  char compteur[5] = "+++++";
-  compteur[0] = nbRouge +'0';
-  compteur[2] = nbJaune +'0';
-  compteur[4] = nbBleu +'0';
-  displayString(compteur);
-}
 void setColor(int red, int green, int blue)
 {
   digitalWrite(LED_R, red);
@@ -200,6 +145,86 @@ void stop()
   MOTOR_SetSpeed(M_GAUCHE,0);
   MOTOR_SetSpeed(M_DROITE,0);
 }
+void waitBouton()
+{
+  Serial.println("stop");
+  setColor(1,0,0);
+  while (digitalRead(BOUTON_PIN) == 0){displayString("Stop+");}
+  Serial.println("peser");
+  while(digitalRead(BOUTON_PIN) == 1){} 
+  delay(50); // bouncing buffer
+  setColor(0,1,0);
+}
+void t_bouton()
+{
+  Serial.println("bouton");
+  if (digitalRead(BOUTON_PIN) == 1)
+  {
+    stop();
+    while(digitalRead(BOUTON_PIN) == 1){}     // attend le relachement
+    delay(50); // bouncing buffer                             
+    waitBouton();                             // attend pour repartir
+  }
+  digitalWrite(LED_R,LOW);
+}
+
+TimedAction threadBouton = TimedAction(50,t_bouton);
+void servo(int pulse) // 1 = ouvert     2 = ferme
+{
+  digitalWrite(pinServo,1);
+  delay(pulse);
+  digitalWrite(pinServo,0);
+  delay(20-pulse);
+}
+void delayServo(int milli,int pulse) /// pas precis
+{
+  for (int t =0;t<milli;t+=1)
+  {
+    threadBouton.check();
+    servo(pulse);
+  }
+}
+void step(int angle, bool direction)
+{
+  long nb_pulse = angle / 0.225;
+  Serial.println(nb_pulse);
+
+
+  if(direction == true){
+    digitalWrite(dir, HIGH); //Set direction of motor to CW.
+    digitalWrite(ena, LOW); //Set Enable pin to low (Enabled)
+    for(int count = 1; count < nb_pulse; count++){
+      threadBouton.check();
+      digitalWrite(stp, HIGH); //Set Step Pin to HIGH for half of period.
+      delay(1);
+      digitalWrite(stp, LOW); //Set Step pin to LOW for half of period.
+      delay(1);
+    }
+  }
+
+  else if(direction == false){
+    digitalWrite(dir, LOW); //Set direction of motor to CCW.
+    for(int count = 1; count < nb_pulse; count++){
+      threadBouton.check();
+      digitalWrite(stp, HIGH); //Set Step Pin to HIGH for the period duration.
+      delay(1);
+      digitalWrite(stp, LOW);
+      delay(1);
+    }
+    digitalWrite(ena, HIGH); //Set Enable pin to high (Disabled)
+  }
+    
+}
+
+void displayCompteur()
+{
+  char compteur[5] = "+++++";
+  compteur[0] = nbRouge +'0';
+  compteur[2] = nbJaune +'0';
+  compteur[4] = nbBleu +'0';
+  displayString(compteur);
+}
+
 int bacPlein()
 {
   if(nbRouge >= maxCapacity) return 1;
@@ -218,84 +243,70 @@ void viderBac(char couleur[])
   delay(1000);
 }
 
-void waitBouton()
-{
-  Serial.println("stop");
-  setColor(1,0,0);
-  while (digitalRead(BOUTON_PIN) == 0){displayString("Stop+");}
-  Serial.println("peser");
-  while(digitalRead(BOUTON_PIN) == 1){} 
-  delay(50); // bouncing buffer
-  setColor(0,1,0);
-}
 
-void t_bouton()
-{
-  Serial.println("bouton");
-  if (digitalRead(BOUTON_PIN) == 1)
-  {
-    while(digitalRead(BOUTON_PIN) == 1){}     // attend le relachement
-    stop();
-    delay(50); // bouncing buffer                             
-    waitBouton();                             // attend pour repartir
-  }
-  digitalWrite(LED_R,LOW);
-}
-int couleur()
-{
+
+
+int couleur(){//return 1 pour red 2 pour jaune 3 pour blue
   int coul=0;
-    int tab[10];
-    for (int k=0;k<10;k++){
-      tab[k]=0;
-    }
-    int i=0;
-      while (i<10){
-        int red=color.readRed();
-        int green=color.readGreen();
-        int blue=color.readBlue();
-      if (red>green){
-        if (green>blue){
-          if (blue>350){
-          tab[i]=1;
-          }
-        }
-      }
-      if (green>red){
-        if (red>blue){
-          if (blue>350){
-          if (red>400){
-            tab[i]=5;
-          }
-          }
-        }
-      }
+  int tab[10];
+  for (int k=0;k<10;k++){
+    threadBouton.check();
+    tab[k]=0;
+  }
+  int i=0;
+    while (i<10){
+      threadBouton.check();
+      //Serial.println(i);
+      int red=color.readRed();
+      //Serial.println(red);
+      int green=color.readGreen();
+      //Serial.println(green);
+      int blue=color.readBlue();
+      //Serial.println(blue);
+    if (red>green){
       if (green>blue){
-        if(blue>red){
-          if (blue>350){
-          tab[i]=10;
-          }
+        if (blue>350){
+        tab[i]=1;
         }
       }
-      else{
-            tab[i]=0;
+    }
+    if (green>red){
+      if (red>blue){
+        if (blue>350){
+        if (red>400){
+          tab[i]=5;
+        }
+        }
       }
-      i++;
+    }
+    if (green>blue){
+      if(blue>red){
+        if (blue>350){
+        tab[i]=10;
+        }
       }
-      int somme=0;
-      for (int j=0;j<10;j++){
-        somme+=tab[j];
-      }
-      switch (somme){
+    }
+    else{
+          tab[i]=0;
+    }
+    i++;
+    }
+    int somme=0;
+    for (int j=0;j<10;j++){
+      threadBouton.check();
+      somme+=tab[j];
+    }
+    switch (somme){
 
-      case 8: coul=1;break;
-      case 9: coul=1;break;
-      case 10: coul=1;break;
-      case 40: coul=2;break;
-      case 45: coul=2;break;
-      case 50: coul=2;break;
-      case 80: coul=3;break;
-      case 90: coul=3;break;
-      case 100: coul=3;break;
+    case 8: coul=1;break;
+    case 9: coul=1;break;
+    case 10: coul=1;break;
+    case 40: coul=2;break;
+    case 45: coul=2;break;
+    case 50: coul=2;break;
+    case 80: coul=3;break;
+    case 90: coul=3;break;
+    case 100: coul=3;break;
 
     default:coul=0;
   }
@@ -310,16 +321,29 @@ void compteur(int couleur)
     case 3:nbBleu++;break;
   }
 }
-
+void rotateBac(int couleur)
+{
+  int angle;
+  switch(couleur)
+  {
+    case 1:angle = 90;break;
+    case 2:angle = 0; break;
+    case 3:angle = 180; break;
+  }
+  SERVO_SetAngle(0,angle);
+  delay(200);
+}
 void rammasser(int couleur)
 {
   if (couleur == 0)return;
   stop();
+  color.ledOff();
   setColor(1,1,1);
   delayServo(50,2);
-  step(180,true);
+  step(135,true);
+  rotateBac(couleur);
   delayServo(50,1);
-  step(180,false);
+  step(135,false);
   compteur(couleur);
   switch(bacPlein())
   {
@@ -332,7 +356,9 @@ void rammasser(int couleur)
 void t_Couleur()
 {
   Serial.println("couleur");
+  color.ledOn();
   rammasser(couleur());
+  color.ledOff();
 }
 int isLine()
 {
@@ -348,10 +374,12 @@ void uTurn(int line)
   if (line <=4)
   {
     MOTOR_SetSpeed(1,0);
+    MOTOR_SetSpeed(0,vitesse);
   }
   else
   {
     MOTOR_SetSpeed(0,0);
+    MOTOR_SetSpeed(1,vitesse);
   }
 }
 void straight()
@@ -363,6 +391,7 @@ void t_bouger()
 {
   Serial.println("bouger");
   int line = isLine();
+  Serial.println(line);
   if(line != 0) uTurn(line);
   else straight();
 }
@@ -372,9 +401,10 @@ void calibration()
   color.init();
   color.ledOn();
   color.calibrate();
+  color.ledOff();
 
 } 
-TimedAction threadBouton = TimedAction(50,t_bouton);
+
 TimedAction threadCouleur = TimedAction(500,t_Couleur);
 TimedAction threadBouger = TimedAction(100,t_bouger);
 
@@ -431,30 +461,9 @@ void setup() {
 }
 
 void loop() {
-  //setColor(1,0,0);
-  //delay(1000);
-  //setColor(0,1,0);
-  //delay(1000);
-  //setColor(0,0,1);
- // delay(1000);
- threadBouton.check();
+  threadBouton.check();
   threadCouleur.check();
-  threadBouger.check();
+  //threadBouger.check();
   Serial.println("loop");
   displayCompteur();
-  /*
-  digitalWrite(31,HIGH);
-digitalWrite(27,LOW);
-digitalWrite(24,HIGH);
-digitalWrite(23,HIGH);
-digitalWrite(22,LOW);
-digitalWrite(30,HIGH);
-digitalWrite(25,HIGH);
-
-digitalWrite(32,HIGH);
-digitalWrite(29,HIGH);
-digitalWrite(28,HIGH);
-digitalWrite(26,LOW);
-digitalWrite(33,LOW);
-*/
 }
