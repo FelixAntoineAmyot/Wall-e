@@ -3,6 +3,7 @@
 #include <TimedAction.h>
 #include <QTRSensors.h>
 #include <ADJDS311.h>
+#include <elapsedMillis.h>
 
 #define NUM_SENSORS             8  // number of sensors used
 #define NUM_SAMPLES_PER_SENSOR  4  // average 4 analog samples per sensor reading
@@ -12,7 +13,9 @@ QTRSensorsAnalog qtra((unsigned char[]) {A3,A4,A5,A6,A7,A8,A9,A10},
   NUM_SENSORS, NUM_SAMPLES_PER_SENSOR, EMITTER_PIN);
 unsigned int sensorValues[NUM_SENSORS];
 
-const float vitesse = 0.5;
+elapsedMillis timeElapsed;
+
+const float vitesse = 0.25;
 const int LED_R = 47;
 const int LED_G = 48;
 const int LED_B = 49;
@@ -184,11 +187,16 @@ void delayServo(int milli,int pulse) /// pas precis
     servo(pulse);
   }
 }
+void t_servo()
+{
+  digitalWrite(pinServo,1);
+}
+TimedAction threadServo = TimedAction(20,t_servo);
 void step(int angle, bool direction)
 {
+  timeElapsed = 0;
   long nb_pulse = angle / 0.225;
   Serial.println(nb_pulse);
-
 
   if(direction == true){
     digitalWrite(dir, HIGH); //Set direction of motor to CW.
@@ -197,6 +205,7 @@ void step(int angle, bool direction)
       threadBouton.check();
       digitalWrite(stp, HIGH); //Set Step Pin to HIGH for half of period.
       delay(1);
+      digitalWrite(pinServo,0);
       digitalWrite(stp, LOW); //Set Step pin to LOW for half of period.
       delay(1);
     }
@@ -242,20 +251,14 @@ void viderBac(char couleur[])
   }
   delay(1000);
 }
-
-
-
-
 int couleur(){//return 1 pour red 2 pour jaune 3 pour blue
   int coul=0;
   int tab[10];
   for (int k=0;k<10;k++){
-    threadBouton.check();
     tab[k]=0;
   }
   int i=0;
     while (i<10){
-      threadBouton.check();
       //Serial.println(i);
       int red=color.readRed();
       //Serial.println(red);
@@ -293,7 +296,6 @@ int couleur(){//return 1 pour red 2 pour jaune 3 pour blue
     }
     int somme=0;
     for (int j=0;j<10;j++){
-      threadBouton.check();
       somme+=tab[j];
     }
     switch (somme){
@@ -333,16 +335,30 @@ void rotateBac(int couleur)
   SERVO_SetAngle(0,angle);
   delay(200);
 }
+void calib()
+{
+  setColor(1,1,0);
+  while (digitalRead(BOUTON_PIN) == 0)
+  {
+    int c = couleur();
+    switch(c)
+    {
+      case 1:displayString("RouGe");break;
+      case 2:displayString("Jaune");break;
+      case 3:displayString("BleU+");break;
+    }
+  }
+}
 void rammasser(int couleur)
 {
   if (couleur == 0)return;
   stop();
   color.ledOff();
   setColor(1,1,1);
-  delayServo(50,2);
+  delayServo(50,1);
   step(135,true);
   rotateBac(couleur);
-  delayServo(50,1);
+  delayServo(50,2);
   step(135,false);
   compteur(couleur);
   switch(bacPlein())
@@ -360,27 +376,34 @@ void t_Couleur()
   rammasser(couleur());
   color.ledOff();
 }
+
+TimedAction threadCouleur = TimedAction(500,t_Couleur);
 int isLine()
 {
   qtra.read(sensorValues);
   for(int i = 1; i < NUM_SENSORS+1;i++)
   {
-    if(sensorValues[i-1] > 800) return i;
+    Serial.println(sensorValues[i-1]);
+    if(sensorValues[i-1] > 400) return i;
   }
   return 0;
 }
 void uTurn(int line)
 {
-  if (line <=4)
-  {
-    MOTOR_SetSpeed(1,0);
-    MOTOR_SetSpeed(0,vitesse);
-  }
-  else
-  {
-    MOTOR_SetSpeed(0,0);
-    MOTOR_SetSpeed(1,vitesse);
-  }
+  MOTOR_SetSpeed(0,-vitesse);
+  MOTOR_SetSpeed(1,-vitesse);
+  delay(500);
+    if (line <=4)
+    {
+      MOTOR_SetSpeed(1,-vitesse);
+      MOTOR_SetSpeed(0,vitesse);
+    }
+    else
+    {
+      MOTOR_SetSpeed(0,-vitesse);
+      MOTOR_SetSpeed(1,vitesse);
+    }
+  delay(500);
 }
 void straight()
 {
@@ -401,11 +424,10 @@ void calibration()
   color.init();
   color.ledOn();
   color.calibrate();
+  calib();
   color.ledOff();
-
 } 
 
-TimedAction threadCouleur = TimedAction(500,t_Couleur);
 TimedAction threadBouger = TimedAction(100,t_bouger);
 
 
@@ -451,19 +473,20 @@ void setup() {
   digitalWrite(D5, HIGH);
 
   waitBouton();
-  Serial.println("test");
   calibration();
-  Serial.println("1");
-  waitBouton();
-  Serial.println("2");
-  
-  
+  AX_BuzzerON(500,500);
+  delay(1000);
+  AX_BuzzerON(500,500);
+  delay(1000);
+  AX_BuzzerON(500,500);
+  delay(1000);
+  AX_BuzzerON(1000,1500);
 }
 
 void loop() {
   threadBouton.check();
   threadCouleur.check();
-  //threadBouger.check();
+  threadBouger.check();
   Serial.println("loop");
   displayCompteur();
 }
