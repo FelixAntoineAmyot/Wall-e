@@ -43,7 +43,7 @@ const int D2 = 32;
 const int D3 = 37;
 const int D4 = 38;
 const int D5 = 39;
-
+int coulPrec = 0;
 
 int nbRouge = 0;
 int nbJaune = 0;
@@ -176,7 +176,7 @@ void servo(int pulse) // 1 = ouvert     2 = ferme
 {
   digitalWrite(pinServo,1);
   delay(pulse);
-  digitalWrite(pinServo,0);
+  digitalWrite(pinServo,0); 
   delay(20-pulse);
 }
 void delayServo(int milli,int pulse) /// pas precis
@@ -312,7 +312,10 @@ int couleur(){//return 1 pour red 2 pour jaune 3 pour blue
 
     default:coul=0;
   }
-  return coul;
+  if (coul == coulPrec)return coul;
+  coulPrec = coul;
+  return 0;
+  
 }
 void compteur(int couleur)
 {
@@ -356,8 +359,8 @@ void rammasser(int couleur)
   color.ledOff();
   setColor(1,1,1);
   delayServo(50,1);
-  step(135,true);
   rotateBac(couleur);
+  step(135,true);
   delayServo(50,2);
   step(135,false);
   compteur(couleur);
@@ -486,7 +489,7 @@ void setup() {
 void loop() {
   threadBouton.check();
   threadCouleur.check();
-  threadBouger.check();
+  //  threadBouger.check();
   Serial.println("loop");
   displayCompteur();
 }
