@@ -172,26 +172,16 @@ void t_bouton()
 }
 
 TimedAction threadBouton = TimedAction(50,t_bouton);
-void servo(int pulse) // 1 = ouvert     2 = ferme
+void servo() // 1 = ouvert     2 = ferme
 {
-  digitalWrite(pinServo,1);
-  delay(pulse);
-  digitalWrite(pinServo,0); 
-  delay(20-pulse);
-}
-void delayServo(int milli,int pulse) /// pas precis
-{
-  for (int t =0;t<milli;t+=1)
+  for(int i=130;i>60;i--)
   {
     threadBouton.check();
-    servo(pulse);
+    SERVO_SetAngle(1,i);
+    delay(7);
   }
+  delay(100);
 }
-void t_servo()
-{
-  digitalWrite(pinServo,1);
-}
-TimedAction threadServo = TimedAction(20,t_servo);
 void step(int angle, bool direction)
 {
   timeElapsed = 0;
@@ -205,7 +195,6 @@ void step(int angle, bool direction)
       threadBouton.check();
       digitalWrite(stp, HIGH); //Set Step Pin to HIGH for half of period.
       delay(1);
-      digitalWrite(pinServo,0);
       digitalWrite(stp, LOW); //Set Step pin to LOW for half of period.
       delay(1);
     }
@@ -358,11 +347,15 @@ void rammasser(int couleur)
   stop();
   color.ledOff();
   setColor(1,1,1);
-  delayServo(50,1);
+  servo();
   rotateBac(couleur);
-  step(135,true);
-  delayServo(50,2);
-  step(135,false);
+  //delay(1000);
+  step(145,true);
+  //delay(200);
+  SERVO_SetAngle(1,100);
+  delay(500);
+  SERVO_SetAngle(1,130);
+  step(145,false);
   compteur(couleur);
   switch(bacPlein())
   {
@@ -474,7 +467,7 @@ void setup() {
   digitalWrite(D3, HIGH);
   digitalWrite(D4, HIGH);
   digitalWrite(D5, HIGH);
-
+  SERVO_SetAngle(1,130);
   waitBouton();
   calibration();
   AX_BuzzerON(500,500);
@@ -489,7 +482,7 @@ void setup() {
 void loop() {
   threadBouton.check();
   threadCouleur.check();
-  //  threadBouger.check();
+  threadBouger.check();
   Serial.println("loop");
   displayCompteur();
 }
